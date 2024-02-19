@@ -17,7 +17,7 @@ use drift_program::{
 };
 use fnv::FnvHashMap;
 use futures_util::{future::BoxFuture, FutureExt, StreamExt};
-use log::{debug, warn};
+use log::{debug, error, warn};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::{pubsub_client::PubsubClient, rpc_client::RpcClient},
@@ -175,18 +175,22 @@ impl AccountSubscription {
                     }
                 }
                 _ = poll_interval.tick() => {
-                    if let Ok(account_data) = self.rpc_client.get_account(&self.account).await {
-                        self.tx.send_if_modified(|current| {
-                            // only update with polled value if its newer
-                            if Instant::now().duration_since(current.1) >= poll_interval.period() {
-                                *current = (account_data, Instant::now());
-                                true
-                            } else {
-                                false
-                            }
-                        });
-                    } else {
-                        // consecutive errors would indicate an issue, there's not much that can be done besides log/panic...
+                    match self.rpc_client.get_account(&self.account).await {
+                        Ok(account_data) => {
+                            self.tx.send_if_modified(|current| {
+                                // only update with polled value if its newer
+                                if Instant::now().duration_since(current.1) >= poll_interval.period() {
+                                    *current = (account_data, Instant::now());
+                                    true
+                                } else {
+                                    false
+                                }
+                            });
+                        }
+                        Err(err) => {
+                            // consecutive errors would indicate an issue, there's not much that can be done besides log/panic...
+                            error!(target: "account", "Failed to get account data: {:?}", err);
+                        }
                     }
                 }
             }

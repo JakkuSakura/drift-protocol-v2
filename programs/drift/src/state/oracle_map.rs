@@ -167,11 +167,11 @@ impl<'a> OracleMap<'a> {
                 let pubkey = account_info.key();
 
                 let oracle_source = if pubkey == bonk_oracle::id() || pubkey == pepe_oracle::id() {
-                    OracleSource::Pyth1M
+                    OracleSource::Pyth1M {}
                 } else if pubkey == usdc_oracle::id() || pubkey == usdt_oracle_mainnet::id() {
-                    OracleSource::PythStableCoin
+                    OracleSource::PythStableCoin {}
                 } else {
-                    OracleSource::Pyth
+                    OracleSource::Pyth {}
                 };
 
                 oracles.insert(
@@ -218,11 +218,11 @@ impl<'a> OracleMap<'a> {
         if account_info.owner == &pyth_program::id() {
             let pubkey = account_info.key();
             let oracle_source = if pubkey == bonk_oracle::id() || pubkey == pepe_oracle::id() {
-                OracleSource::Pyth1M
+                OracleSource::Pyth1M {}
             } else if pubkey == usdc_oracle::id() || pubkey == usdt_oracle_mainnet::id() {
-                OracleSource::PythStableCoin
+                OracleSource::PythStableCoin {}
             } else {
-                OracleSource::Pyth
+                OracleSource::Pyth {}
             };
             oracles.insert(
                 pubkey,

@@ -22,7 +22,8 @@ use crate::state::traits::{MarketIndexOffset, Size};
 use crate::validate;
 
 #[account(zero_copy(unsafe))]
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct SpotMarket {
     /// The address of the spot market. It is a pda of the market index
@@ -171,6 +172,7 @@ pub struct SpotMarket {
     /// disabled when 0
     /// precision: QUOTE_PRECISION
     pub scale_initial_asset_weight_start: u64,
+    #[serde(with = "serde_big_array::BigArray")]
     pub padding: [u8; 48],
 }
 
@@ -523,7 +525,20 @@ impl Default for SpotFulfillmentConfigStatus {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone,
+    Copy,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub enum AssetTier {
     /// full priviledge
     Collateral,
@@ -544,7 +559,8 @@ impl Default for AssetTier {
 }
 
 #[zero_copy(unsafe)]
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Default, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct InsuranceFund {
     pub vault: Pubkey,

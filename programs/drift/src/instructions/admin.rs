@@ -153,7 +153,7 @@ pub fn handle_initialize_spot_market(
             )?;
 
             validate!(
-                oracle_source == OracleSource::QuoteAsset,
+                oracle_source == OracleSource::QuoteAsset {},
                 ErrorCode::InvalidSpotMarketInitialization,
                 "For quote asset spot market, oracle source must be QuoteAsset"
             )?;

@@ -11,7 +11,19 @@ use crate::validate;
 #[cfg(test)]
 mod tests;
 
-#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(
+    Default,
+    AnchorSerialize,
+    AnchorDeserialize,
+    Clone,
+    Copy,
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub struct HistoricalOracleData {
     /// precision: PRICE_PRECISION
     pub last_oracle_price: i64,
@@ -61,7 +73,19 @@ impl HistoricalOracleData {
     }
 }
 
-#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(
+    Default,
+    AnchorSerialize,
+    AnchorDeserialize,
+    Clone,
+    Copy,
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub struct HistoricalIndexData {
     /// precision: PRICE_PRECISION
     pub last_index_bid_price: u64,
@@ -97,7 +121,18 @@ impl HistoricalIndexData {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(
+    AnchorSerialize,
+    AnchorDeserialize,
+    Clone,
+    Copy,
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub enum OracleSource {
     Pyth,
     Switchboard,

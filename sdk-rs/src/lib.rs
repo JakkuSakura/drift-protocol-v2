@@ -270,7 +270,7 @@ impl AccountProvider for WsAccountProvider {
 /// It is cheaply clone-able and consumers are encouraged to do so
 /// It is not recommended to create multiple instances with `::new()` as this will not re-use underlying resources such
 /// as network connections or memory allocations
-#[derive(Clone)]
+
 #[must_use]
 pub struct DriftClient<T: AccountProvider> {
     backend: DriftClientBackend<T>,
@@ -562,7 +562,7 @@ impl<T: AccountProvider> DriftClientBackend<T> {
 
         let lookup_table = utils::deserialize_alt(lookup_table_address, &lookup_table_account?)?;
 
-        this.program_data = ProgramData::new(lookup_table);
+        this.program_data = ProgramData::new(context, lookup_table);
 
         Ok(this)
     }
@@ -607,7 +607,7 @@ impl<T: AccountProvider> DriftClientBackend<T> {
 
         Ok(fees)
     }
-
+    #[allow(unused)]
     /// Get all drift program accounts by Anchor type
     async fn get_program_accounts<U: AccountDeserialize + Discriminator>(
         &self,

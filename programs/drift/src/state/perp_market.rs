@@ -37,7 +37,18 @@ use static_assertions::const_assert_eq;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(
+    Clone,
+    Copy,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Debug,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub enum MarketStatus {
     /// warm up period for initialization, fills are paused
     Initialized,
@@ -65,7 +76,18 @@ impl Default for MarketStatus {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(
+    Clone,
+    Copy,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Debug,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub enum ContractType {
     Perpetual,
     Future,
@@ -77,7 +99,20 @@ impl Default for ContractType {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone,
+    Copy,
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Debug,
+    Eq,
+    PartialOrd,
+    Ord,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub enum ContractTier {
     /// max insurance capped at A level
     A,
@@ -132,7 +167,8 @@ impl AMMLiquiditySplit {
 }
 
 #[account(zero_copy(unsafe))]
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct PerpMarket {
     /// The perp market's address. It is a pda of the market index
@@ -209,6 +245,7 @@ pub struct PerpMarket {
     /// E.g. if this is -50 and the fee is 5bps, the new fee will be 2.5bps
     /// if this is 50 and the fee is 5bps, the new fee will be 7.5bps
     pub fee_adjustment: i16,
+    #[serde(with = "serde_big_array::BigArray")]
     pub padding: [u8; 46],
 }
 
@@ -436,7 +473,8 @@ impl PerpMarket {
 }
 
 #[zero_copy(unsafe)]
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Default, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct InsuranceClaim {
     /// The amount of revenue last settled
@@ -458,7 +496,8 @@ pub struct InsuranceClaim {
 }
 
 #[zero_copy(unsafe)]
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Default, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct PoolBalance {
     /// To get the pool's token amount, you must multiply the scaled balance by the market's cumulative
@@ -500,7 +539,8 @@ impl SpotBalance for PoolBalance {
 
 #[assert_no_slop]
 #[zero_copy(unsafe)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[repr(C)]
 pub struct AMM {
     /// oracle price data public key
@@ -1070,13 +1110,13 @@ impl AMM {
 
     pub fn get_oracle_twap(&self, price_oracle: &AccountInfo) -> DriftResult<Option<i64>> {
         match self.oracle_source {
-            OracleSource::Pyth | OracleSource::PythStableCoin => {
+            OracleSource::Pyth {} | OracleSource::PythStableCoin {} => {
                 Ok(Some(self.get_pyth_twap(price_oracle, 1)?))
             }
-            OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(price_oracle, 1000)?)),
-            OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(price_oracle, 1000000)?)),
-            OracleSource::Switchboard => Ok(None),
-            OracleSource::QuoteAsset => {
+            OracleSource::Pyth1K {} => Ok(Some(self.get_pyth_twap(price_oracle, 1000)?)),
+            OracleSource::Pyth1M {} => Ok(Some(self.get_pyth_twap(price_oracle, 1000000)?)),
+            OracleSource::Switchboard {} => Ok(None),
+            OracleSource::QuoteAsset {} => {
                 msg!("Can't get oracle twap for quote asset");
                 Err(ErrorCode::DefaultError)
             }

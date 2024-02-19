@@ -67,13 +67,12 @@ pub mod event_emitter;
 pub mod websocket_program_account_subscriber;
 
 // subscribers
-pub mod dlob;
-pub mod slot_subscriber;
-pub mod event_subscriber;
 pub mod auction_subscriber;
+pub mod dlob;
+pub mod event_subscriber;
+pub mod slot_subscriber;
 
 use types::*;
-
 
 /// Provides solana Account fetching API
 pub trait AccountProvider: 'static + Sized + Send + Sync {
@@ -274,22 +273,16 @@ impl AccountProvider for WsAccountProvider {
 #[derive(Clone)]
 #[must_use]
 pub struct DriftClient<T: AccountProvider> {
-    backend: &'static DriftClientBackend<T>,
+    backend: DriftClientBackend<T>,
     wallet: Wallet,
     pub active_sub_account_id: u8,
     pub sub_account_ids: Vec<u8>,
 }
 
 impl<T: AccountProvider> DriftClient<T> {
-    pub async fn new(
-        context: Context, 
-        account_provider: T, 
-        keypair: Keypair, 
-    ) -> SdkResult<Self> {
+    pub async fn new(context: Context, account_provider: T, keypair: Keypair) -> SdkResult<Self> {
         Ok(Self {
-            backend: Box::leak(Box::new(
-                DriftClientBackend::new(context, account_provider).await?,
-            )),
+            backend: DriftClientBackend::new(context, account_provider).await?,
             wallet: Wallet::new(keypair),
             active_sub_account_id: 0,
             sub_account_ids: vec![0],
@@ -300,12 +293,10 @@ impl<T: AccountProvider> DriftClient<T> {
         context: Context,
         account_provider: T,
         keypair: Keypair,
-        opts: ClientOpts
+        opts: ClientOpts,
     ) -> SdkResult<Self> {
         Ok(Self {
-            backend: Box::leak(Box::new(
-                DriftClientBackend::new(context, account_provider).await?
-                )),
+            backend: DriftClientBackend::new(context, account_provider).await?,
             wallet: Wallet::new(keypair),
             active_sub_account_id: opts.clone().active_sub_account_id(),
             sub_account_ids: opts.clone().sub_account_ids(),
@@ -449,11 +440,7 @@ impl<T: AccountProvider> DriftClient<T> {
     /// Sign and send a tx to the network
     ///
     /// Returns the signature on success
-    pub async fn sign_and_send(
-        &self,
-        tx: VersionedMessage,
-    ) -> SdkResult<Signature> {
-        
+    pub async fn sign_and_send(&self, tx: VersionedMessage) -> SdkResult<Signature> {
         self.backend
             .sign_and_send(self.wallet(), tx)
             .await
@@ -570,18 +557,12 @@ impl<T: AccountProvider> DriftClientBackend<T> {
         };
 
         let lookup_table_address = market_lookup_table(context);
-        let (spot, perp, lookup_table_account): (
-            SdkResult<Vec<SpotMarket>>,
-            SdkResult<Vec<PerpMarket>>,
-            SdkResult<Account>,
-        ) = tokio::join!(
-            this.get_program_accounts(),
-            this.get_program_accounts(),
-            this.get_account_raw(&lookup_table_address),
-        );
+        let lookup_table_account: SdkResult<Account> =
+            this.get_account_raw(&lookup_table_address).await;
+
         let lookup_table = utils::deserialize_alt(lookup_table_address, &lookup_table_account?)?;
 
-        this.program_data = ProgramData::new(spot?, perp?, lookup_table);
+        this.program_data = ProgramData::new(lookup_table);
 
         Ok(this)
     }
@@ -836,8 +817,13 @@ impl<'a> TransactionBuilder<'a> {
     }
 
     /// Deposit collateral into account
-    pub fn deposit(mut self, amount: u64, spot_market_index: u16, user_token_account: Pubkey, reduce_only: Option<bool>) -> Self {
-
+    pub fn deposit(
+        mut self,
+        amount: u64,
+        spot_market_index: u16,
+        user_token_account: Pubkey,
+        reduce_only: Option<bool>,
+    ) -> Self {
         let accounts = build_accounts(
             self.program_data,
             drift_program::accounts::Deposit {
@@ -851,7 +837,7 @@ impl<'a> TransactionBuilder<'a> {
             },
             self.account_data.as_ref(),
             &[],
-            &[MarketId::spot(spot_market_index)]
+            &[MarketId::spot(spot_market_index)],
         );
 
         let ix = Instruction {
@@ -860,8 +846,8 @@ impl<'a> TransactionBuilder<'a> {
             data: InstructionData::data(&drift_program::instruction::Deposit {
                 market_index: spot_market_index,
                 amount,
-                reduce_only: reduce_only.unwrap_or(false)
-            })
+                reduce_only: reduce_only.unwrap_or(false),
+            }),
         };
 
         self.ixs.push(ix);
@@ -869,7 +855,13 @@ impl<'a> TransactionBuilder<'a> {
         self
     }
 
-    pub fn withdraw(mut self, amount: u64, spot_market_index: u16, user_token_account: Pubkey, reduce_only: Option<bool>) -> Self {
+    pub fn withdraw(
+        mut self,
+        amount: u64,
+        spot_market_index: u16,
+        user_token_account: Pubkey,
+        reduce_only: Option<bool>,
+    ) -> Self {
         let accounts = build_accounts(
             self.program_data,
             drift_program::accounts::Withdraw {
@@ -880,11 +872,11 @@ impl<'a> TransactionBuilder<'a> {
                 spot_market_vault: constants::derive_spot_market_vault(spot_market_index),
                 user_token_account,
                 drift_signer: constants::derive_drift_signer(),
-                token_program: *constants::TOKEN_PROGRAM_ID
+                token_program: *constants::TOKEN_PROGRAM_ID,
             },
             &self.account_data.as_ref(),
             &[],
-            &[MarketId::spot(spot_market_index)]
+            &[MarketId::spot(spot_market_index)],
         );
 
         let ix = Instruction {
@@ -893,8 +885,8 @@ impl<'a> TransactionBuilder<'a> {
             data: InstructionData::data(&drift_program::instruction::Withdraw {
                 market_index: spot_market_index,
                 amount,
-                reduce_only: reduce_only.unwrap_or(false)
-            })
+                reduce_only: reduce_only.unwrap_or(false),
+            }),
         };
 
         self.ixs.push(ix);
@@ -1354,7 +1346,7 @@ mod tests {
     async fn setup(
         rpc_mocks: Mocks,
         account_provider_mocks: Mocks,
-        keypair: Keypair
+        keypair: Keypair,
     ) -> DriftClient<RpcAccountProvider> {
         let backend = DriftClientBackend {
             rpc_client: RpcClient::new_mock_with_mocks(DEVNET_ENDPOINT.to_string(), rpc_mocks),
@@ -1368,7 +1360,7 @@ mod tests {
         };
 
         DriftClient {
-            backend: Box::leak(Box::new(backend)),
+            backend,
             wallet: Wallet::new(keypair),
             active_sub_account_id: 0,
             sub_account_ids: vec![0],
@@ -1377,9 +1369,13 @@ mod tests {
 
     #[tokio::test]
     async fn get_market_accounts() {
-        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT), Keypair::new())
-            .await
-            .unwrap();
+        let client = DriftClient::new(
+            Context::DevNet,
+            RpcAccountProvider::new(DEVNET_ENDPOINT),
+            Keypair::new(),
+        )
+        .await
+        .unwrap();
         let accounts: Vec<SpotMarket> = client
             .backend
             .get_program_accounts()
